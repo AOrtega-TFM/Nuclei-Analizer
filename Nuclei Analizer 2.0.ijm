@@ -1,7 +1,7 @@
 var DAPI = 0;
 //Settings
 Dialog.create("Enter data main directory");
-Dialog.addDirectory("Directory","G:/La meva unitat/Master/TFM/Resultats/Old cells/Media change/2n intent/Media change/Plate/");
+Dialog.addDirectory("Directory","");
 Dialog.addChoice("Nuber of channels", newArray("1","2","3"),"2");
 Dialog.addChoice("DAPI channel number", newArray("1","2","3"),"1");
 Dialog.addChoice("Marker channel number", newArray("1","2","3"),"2");
@@ -9,7 +9,7 @@ Dialog.addNumber("Min size", 1000)
 Dialog.addNumber("Max size", 10000)
 Dialog.addCheckbox("Detect foci", true);
 Dialog.addMessage("Advanced Options:")
-Dialog.addCheckbox("Make new masks", false);
+Dialog.addCheckbox("Make new masks", true);
 Dialog.addCheckbox("Make new readings", true);
 Dialog.addCheckbox("Remove scalebar", false);
 Dialog.addCheckbox("Debug mode", false);
