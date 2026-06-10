@@ -1,4 +1,3 @@
-var DAPI = 0;
 //Settings
 Dialog.create("Enter data main directory");
 Dialog.addDirectory("Directory","");
@@ -26,10 +25,11 @@ masking=Dialog.getCheckbox();
 reading=Dialog.getCheckbox();
 scalebar=Dialog.getCheckbox();
 testing=Dialog.getCheckbox();
-//get findStackMaxima options if foci
+var DAPI = 0;
+//get findStackMaxima options if foci are to be counted
 if(foci){
   Dialog.create("Find Maxima");
-  Dialog.addNumber("Noise Tolerance:", 7.5);
+  Dialog.addNumber("Noise Tolerance:", 8);
   Dialog.addChoice("Output Type:", newArray("Single Points", "Maxima Within Tolerance", "Segmented Particles", "Count"));
   Dialog.addCheckbox("Exclude Edge Maxima", false);
   Dialog.addCheckbox("Light Background", false);
@@ -129,8 +129,8 @@ function findnuclei(dir){ //nuclei finder from DAPI image
 function analizenuclei(dir){
     roiManager("Open", outdir+"/ROIs/"+marker+sample+".zip");
     File.openSequence(dir, " bitdepth=8 start=" + g + " step=" + c);
-    input=getTitle();
-    selectImage(input);
+    rename("Signal");
+    input="Signal";
     roiManager("Show All");
     run("Set Measurements...", "area mean min redirect=None decimal=3");
 	if(testing&&!foci){
@@ -147,45 +147,47 @@ function analizenuclei(dir){
 	roiManager("Delete");
     }
 function focicounter(){
-	findStackMaxima();
+	findStackMaxima(); //generate foci mask
+//foci processing
+	for (k = 0; k < 4; k++) {
+      run("Dilate", "stack");
+    	}
+  	run("Watershed","stack");
 	if(testing){
-	original= getImageID();
-  run("Dilate", "stack");
-  run("Dilate", "stack");
-  run("Dilate", "stack");
-  run("Dilate", "stack");
-  run("Watershed","stack");
-	run("Duplicate...", "duplicate");
-	rename("foci");
-	selectImage(input);
-	setMinAndMax(0, 25);
-	run("Apply LUT", "stack");
-	if (masking){
-		selectImage(DAPI);
-	}
-	else {
-	File.openSequence(dir, " bitdepth=8 start=" + b + " step=" + c);  //open DAPI stainings
-	}
-    rename("DAPI");
-    setMinAndMax(65, 160);
-
-    run("Apply LUT", "stack");
-	run("Merge Channels...", "c1=foci c2="+input+" c3=DAPI create keep");
-	run("Channels Tool...");
-	waitForUser("Check channel processing");
-	run("Close");
-	run("RGB Color", "slices");
-	roiManager("draw");
-	roiManager("Show All");
-   	waitForUser("Check Masks before proceeding " + sample + marker);
-   	selectImage(original);
+		original= getImageID();
+		run("Duplicate...", "duplicate");
+		rename("foci");
+		selectImage(input);
+		setMinAndMax(0, 25);
+		if (masking){
+			selectImage(DAPI);
+		}
+		else {
+			File.openSequence(dir, " bitdepth=8 start=" + b + " step=" + c);  //open DAPI stainings
+		}
+    	rename("DAPI");
+    	setMinAndMax(65, 160);
+	//generate composite with channels
+		run("Merge Channels...", "c1=foci c2="+input+" c3=DAPI create keep");
+		comp=getImageID();
+		run("Channels Tool...");
+		waitForUser("Check channel processing"); //Manual revison of results
+	//generate RGB with ROIs drawn
+		run("Apply LUT", "stack");
+		selectImage(comp);
+		run("RGB Color", "slices");
+		roiManager("draw");
+		roiManager("Show All");
+   		waitForUser("Check Masks before proceeding " + sample + marker); //showing RGBs
+   		selectImage(original);
    	}
+   	
 	n=roiManager("Count");
-	for (i=0;i<n;i++){
-	roiManager("Select", i);
-	run("Analyze Particles...", "exclude summarize slice");
-	roiManager("Select", i);
-	run("Clear", "slice");
+	for (i=0;i<n;i++){ //iterate for all nuclei
+		roiManager("Select", i);
+		run("Analyze Particles...", "exclude summarize slice"); //count foci in nuclei
+		roiManager("Select", i);
+		run("Clear", "slice"); //delete foci in selection to avoid duplicate counting on overlaping nuclei
 	}
 	saveAs("Results", outdir+"Data/"+marker+sample+"foci.csv");
 	run("Close");
@@ -193,7 +195,7 @@ function focicounter(){
 }
 
 
-function findStackMaxima(){
+function findStackMaxima(){ //find maxima iterated trough a stack
   setBatchMode(true);
   n = nSlices();
   for (i=1; i<=n; i++) {
